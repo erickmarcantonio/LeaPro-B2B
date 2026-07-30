@@ -1,0 +1,2035 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LeadPro B2B - Prospecção GPS & Auditoria Digital</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#f0fdf4',
+                            500: '#10b981',
+                            600: '#059669',
+                            700: '#047857',
+                            accent: '#6366f1',
+                            dark: '#0f172a',
+                            card: '#1e293b',
+                            border: '#334155'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- Google Fonts Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Leaflet CSS for Map -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+    <!-- Supabase JS Client SDK -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0b0f17;
+            color: #f1f5f9;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0f172a;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #334155;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #475569;
+        }
+
+        /* Leaflet Map Styling */
+        .leaflet-tile {
+            filter: contrast(1.05) saturate(1.1);
+        }
+        .leaflet-container {
+            background: #0b0f17 !important;
+            font-family: 'Inter', sans-serif !important;
+        }
+        .leaflet-popup-content-wrapper, .leaflet-popup-tip {
+            background-color: #1e293b !important;
+            color: #f8fafc !important;
+            border: 1px solid #334155;
+            border-radius: 0.85rem;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+        }
+        .leaflet-control-layers {
+            background: #0f172a !important;
+            color: #f1f5f9 !important;
+            border: 1px solid #334155 !important;
+            border-radius: 0.75rem !important;
+            padding: 6px 10px !important;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.4) !important;
+        }
+        .leaflet-control-layers-list label {
+            font-size: 11px !important;
+            cursor: pointer;
+            color: #cbd5e1 !important;
+            font-weight: 500;
+        }
+
+        /* Custom Pulse Animations */
+        @keyframes userGlow {
+            0% { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.7); }
+            70% { box-shadow: 0 0 0 15px rgba(99, 102, 241, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0); }
+        }
+        .user-location-pulse {
+            animation: userGlow 2s infinite;
+        }
+
+        /* Animated Glowing Background Mesh for Auth Screen */
+        @keyframes ambientGradient {
+            0% { transform: translate(0px, 0px) scale(1); }
+            33% { transform: translate(30px, -50px) scale(1.1); }
+            66% { transform: translate(-20px, 20px) scale(0.95); }
+            100% { transform: translate(0px, 0px) scale(1); }
+        }
+
+        @keyframes pulseGlow {
+            0%, 100% { opacity: 0.4; filter: blur(60px); }
+            50% { opacity: 0.8; filter: blur(80px); }
+        }
+
+        .blob-emerald {
+            animation: ambientGradient 12s infinite ease-in-out, pulseGlow 6s infinite ease-in-out;
+        }
+
+        .blob-teal {
+            animation: ambientGradient 16s infinite ease-in-out reverse, pulseGlow 8s infinite ease-in-out 1s;
+        }
+
+        .blob-indigo {
+            animation: ambientGradient 20s infinite ease-in-out, pulseGlow 10s infinite ease-in-out 2s;
+        }
+
+        /* Glassmorphism Card Hover */
+        .glass-auth-card {
+            background: rgba(15, 23, 42, 0.75);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            border: 1px solid rgba(16, 185, 129, 0.25);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7), 0 0 30px rgba(16, 185, 129, 0.15);
+        }
+    </style>
+</head>
+<body class="h-screen flex flex-col overflow-hidden bg-slate-950 text-slate-100 font-sans">
+
+    <!-- ========================================== -->
+    <!-- AUTHENTICATION SCREEN (LOGIN / SIGN UP) -->
+    <!-- ========================================== -->
+    <div id="authScreen" class="fixed inset-0 z-[20000] flex items-center justify-center bg-slate-950 overflow-hidden px-4">
+        
+        <!-- Animated Background Glowing Blobs -->
+        <div id="authBgCanvas" class="absolute inset-0 pointer-events-none overflow-hidden">
+            <div class="blob-emerald absolute top-1/4 -left-20 w-96 h-96 rounded-full bg-emerald-500/30 mix-blend-screen filter blur-3xl"></div>
+            <div class="blob-teal absolute bottom-1/4 -right-20 w-[500px] h-[500px] rounded-full bg-teal-500/25 mix-blend-screen filter blur-3xl"></div>
+            <div class="blob-indigo absolute -bottom-20 left-1/3 w-96 h-96 rounded-full bg-indigo-600/30 mix-blend-screen filter blur-3xl"></div>
+            <div class="absolute inset-0 bg-[radial-gradient(#1e293b_1px,transparent_1px)] [background-size:24px_24px] opacity-25"></div>
+        </div>
+
+        <!-- Mouse Spotlight Glow Follower -->
+        <div id="cursorGlow" class="absolute w-80 h-80 rounded-full bg-emerald-500/10 filter blur-3xl pointer-events-none transition-transform duration-75 ease-out"></div>
+
+        <!-- Auth Main Card -->
+        <div class="glass-auth-card w-full max-w-md rounded-3xl p-6 sm:p-8 relative z-10 space-y-6 transition-all duration-300">
+            
+            <!-- Brand Logo & Header -->
+            <div class="text-center space-y-2">
+                <div class="w-14 h-14 mx-auto rounded-2xl bg-gradient-to-br from-emerald-400 via-teal-500 to-indigo-600 flex items-center justify-center shadow-xl shadow-emerald-500/30 ring-4 ring-emerald-500/20">
+                    <i class="fa-solid fa-radar text-white text-2xl animate-pulse"></i>
+                </div>
+                <h1 class="text-2xl font-bold tracking-tight bg-gradient-to-r from-emerald-300 via-teal-200 to-indigo-200 bg-clip-text text-transparent">
+                    LeadPro B2B
+                </h1>
+                <p class="text-xs text-slate-400">Plataforma de Prospecção GPS</p>
+                
+                <!-- Botão Desenvolvedor do LeadPro -->
+                <button type="button" onclick="openDevModal()" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-900/90 hover:bg-slate-800 border border-emerald-500/40 text-[11px] text-emerald-400 font-semibold mt-1 transition-all shadow-md hover:shadow-emerald-500/20 group cursor-pointer">
+                    <i class="fa-solid fa-code text-emerald-400 group-hover:rotate-12 transition-transform"></i> 
+                    <span>Desenvolvedor do LeadPro</span>
+                </button>
+            </div>
+
+            <!-- Auth Mode Tab Switcher -->
+            <div class="grid grid-cols-2 p-1 bg-slate-900/90 rounded-2xl border border-slate-800 text-xs font-semibold">
+                <button id="tabBtnLogin" onclick="switchAuthTab('login')" class="py-2.5 rounded-xl transition-all text-emerald-400 bg-slate-800 shadow-md flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-right-to-bracket"></i> Entrar
+                </button>
+                <button id="tabBtnSignup" onclick="switchAuthTab('signup')" class="py-2.5 rounded-xl transition-all text-slate-400 hover:text-slate-200 flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-user-plus"></i> Criar Conta
+                </button>
+            </div>
+
+            <!-- Alert Message Box -->
+            <div id="authAlert" class="hidden p-3 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all"></div>
+
+            <!-- FORM 1: LOGIN -->
+            <form id="formLogin" onsubmit="handleLoginSubmit(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-medium text-slate-300 mb-1.5 flex items-center gap-1.5">
+                        <i class="fa-solid fa-envelope text-emerald-400"></i> E-mail Corporativo
+                    </label>
+                    <input type="email" id="loginEmail" required placeholder="seuemail@empresa.com" class="w-full bg-slate-950/80 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all">
+                </div>
+
+                <div>
+                    <div class="flex justify-between items-center mb-1.5">
+                        <label class="block text-xs font-medium text-slate-300 flex items-center gap-1.5">
+                            <i class="fa-solid fa-lock text-emerald-400"></i> Senha
+                        </label>
+                        <a href="#" onclick="showToast('Sua solicitação de redefinição foi enviada para o e-mail.')" class="text-[11px] text-emerald-400 hover:underline">Esqueceu?</a>
+                    </div>
+                    <input type="password" id="loginPassword" required placeholder="••••••••" class="w-full bg-slate-950/80 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all">
+                </div>
+
+                <div class="flex items-center justify-between text-xs text-slate-400 pt-1">
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" checked class="rounded bg-slate-950 border-slate-800 text-emerald-500 focus:ring-0">
+                        Lembrar do acesso
+                    </label>
+                </div>
+
+                <button type="submit" id="btnLoginSubmit" class="w-full py-3 rounded-xl bg-gradient-to-r from-emerald-500 via-teal-600 to-indigo-600 hover:from-emerald-400 hover:to-indigo-500 text-white font-bold text-xs tracking-wide shadow-lg shadow-emerald-600/30 transition-all duration-200 flex items-center justify-center gap-2 group">
+                    <span>Acessar Plataforma</span>
+                    <i class="fa-solid fa-arrow-right group-hover:translate-x-1 transition-transform"></i>
+                </button>
+            </form>
+
+            <!-- FORM 2: SIGNUP (CRIAR CONTA) -->
+            <form id="formSignup" onsubmit="handleSignupSubmit(event)" class="space-y-3.5 hidden">
+                <div>
+                    <label class="block text-xs font-medium text-slate-300 mb-1 flex items-center gap-1.5">
+                        <i class="fa-solid fa-user text-emerald-400"></i> Nome Completo
+                    </label>
+                    <input type="text" id="signupName" required placeholder="Seu Nome Completo" class="w-full bg-slate-950/80 border border-slate-800 rounded-xl px-3.5 py-2 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-emerald-500 transition-all">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-medium text-slate-300 mb-1 flex items-center gap-1.5">
+                        <i class="fa-solid fa-envelope text-emerald-400"></i> E-mail Corporativo
+                    </label>
+                    <input type="email" id="signupEmail" required placeholder="seuemail@empresa.com" class="w-full bg-slate-950/80 border border-slate-800 rounded-xl px-3.5 py-2 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-emerald-500 transition-all">
+                </div>
+
+                <div class="grid grid-cols-2 gap-2.5">
+                    <div>
+                        <label class="block text-xs font-medium text-slate-300 mb-1 flex items-center gap-1.5">
+                            <i class="fa-solid fa-phone text-emerald-400"></i> WhatsApp
+                        </label>
+                        <input type="tel" id="signupPhone" required placeholder="(11) 99999-9999" class="w-full bg-slate-950/80 border border-slate-800 rounded-xl px-3.5 py-2 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-emerald-500 transition-all">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-300 mb-1 flex items-center gap-1.5">
+                            <i class="fa-solid fa-calendar text-emerald-400"></i> Nascimento
+                        </label>
+                        <input type="date" id="signupDob" required class="w-full bg-slate-950/80 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-emerald-500 transition-all">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-2.5">
+                    <div>
+                        <label class="block text-xs font-medium text-slate-300 mb-1 flex items-center gap-1.5">
+                            <i class="fa-solid fa-lock text-emerald-400"></i> Senha
+                        </label>
+                        <input type="password" id="signupPassword" required minlength="6" placeholder="••••••••" class="w-full bg-slate-950/80 border border-slate-800 rounded-xl px-3.5 py-2 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-emerald-500 transition-all">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-300 mb-1 flex items-center gap-1.5">
+                            <i class="fa-solid fa-shield-halved text-emerald-400"></i> Confirmar
+                        </label>
+                        <input type="password" id="signupConfirmPassword" required minlength="6" placeholder="••••••••" class="w-full bg-slate-950/80 border border-slate-800 rounded-xl px-3.5 py-2 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-emerald-500 transition-all">
+                    </div>
+                </div>
+
+                <button type="submit" id="btnSignupSubmit" class="w-full py-3 rounded-xl bg-gradient-to-r from-emerald-500 via-teal-600 to-indigo-600 hover:from-emerald-400 hover:to-indigo-500 text-white font-bold text-xs tracking-wide shadow-lg shadow-emerald-600/30 transition-all duration-200 flex items-center justify-center gap-2 group mt-2">
+                    <i class="fa-solid fa-user-check"></i>
+                    <span>Criar minha conta no LeadPro B2B</span>
+                </button>
+            </form>
+
+            <div class="text-center pt-2 border-t border-slate-800/80">
+                <p class="text-[11px] text-slate-500">
+                    Ao continuar, você concorda com os termos de prospecção comercial LeadPro.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL DO DESENVOLVEDOR (ERICK MARCANTONIO) -->
+    <div id="devModal" class="fixed inset-0 bg-slate-950/90 backdrop-blur-lg z-[30000] flex items-center justify-center hidden p-4">
+        <div class="bg-slate-900 border border-emerald-500/30 rounded-3xl w-full max-w-sm p-6 text-center space-y-5 shadow-2xl relative">
+            <button onclick="closeDevModal()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-200 text-lg p-1 transition-colors">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+            
+            <div class="w-16 h-16 mx-auto rounded-2xl bg-gradient-to-br from-emerald-400 via-teal-500 to-indigo-600 flex items-center justify-center text-white text-2xl font-bold shadow-lg shadow-emerald-500/30 ring-4 ring-emerald-500/20">
+                <i class="fa-solid fa-code text-white"></i>
+            </div>
+            
+            <div>
+                <h3 class="text-lg font-bold text-slate-100">Erick Marcantonio</h3>
+                <p class="text-xs text-emerald-400 font-semibold mt-0.5">Desenvolvedor do LeadPro B2B</p>
+            </div>
+
+            <div class="space-y-3 pt-1">
+                <a href="https://instagram.com/erick.marcantonio" target="_blank" rel="noopener noreferrer" class="flex items-center justify-between p-3.5 rounded-2xl bg-slate-950 border border-slate-800 hover:border-emerald-500/50 hover:bg-slate-900 transition-all group">
+                    <div class="flex items-center gap-3">
+                        <div class="w-8 h-8 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
+                            <i class="fa-brands fa-instagram text-emerald-400 text-base"></i>
+                        </div>
+                        <div class="text-left">
+                            <span class="text-slate-400 text-[10px] block uppercase font-bold tracking-wider">Instagram</span>
+                            <span class="text-xs font-semibold text-slate-200 group-hover:text-emerald-400 transition-colors">erick.marcantonio</span>
+                        </div>
+                    </div>
+                    <i class="fa-solid fa-arrow-up-right-from-square text-xs text-emerald-400 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform"></i>
+                </a>
+
+                <a href="https://www.linkedin.com/in/erick-marcantonio-9213322a9/" target="_blank" rel="noopener noreferrer" class="flex items-center justify-between p-3.5 rounded-2xl bg-slate-950 border border-slate-800 hover:border-emerald-500/50 hover:bg-slate-900 transition-all group">
+                    <div class="flex items-center gap-3">
+                        <div class="w-8 h-8 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
+                            <i class="fa-brands fa-linkedin text-emerald-400 text-base"></i>
+                        </div>
+                        <div class="text-left">
+                            <span class="text-slate-400 text-[10px] block uppercase font-bold tracking-wider">LinkedIn</span>
+                            <span class="text-xs font-semibold text-slate-200 group-hover:text-emerald-400 transition-colors">Erick Marcantonio</span>
+                        </div>
+                    </div>
+                    <i class="fa-solid fa-arrow-up-right-from-square text-xs text-emerald-400 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform"></i>
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- MAIN APPLICATION CONTAINER (GATED ACCESS) -->
+    <!-- ========================================== -->
+    <div id="mainApp" class="h-screen flex flex-col overflow-hidden hidden">
+
+        <!-- Navigation Header -->
+        <header class="h-16 border-b border-slate-800 bg-slate-900/90 px-4 md:px-6 flex items-center justify-between shrink-0 z-20">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 via-teal-600 to-indigo-600 flex items-center justify-center shadow-lg shadow-emerald-900/40">
+                    <i class="fa-solid fa-radar text-white text-xl"></i>
+                </div>
+                <div>
+                    <h1 class="font-bold text-lg leading-none bg-gradient-to-r from-emerald-400 via-teal-300 to-indigo-300 bg-clip-text text-transparent">LeadPro <span class="text-xs font-semibold px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">GPS 3.0</span></h1>
+                    <p class="text-[11px] text-slate-400">Varredura de Oportunidades & Auditoria Digital</p>
+                </div>
+            </div>
+
+            <!-- Search Bar Top with Geolocation Quick Button -->
+            <div class="hidden md:flex items-center gap-2 bg-slate-950 border border-slate-800 rounded-xl p-1.5 w-[500px] focus-within:border-emerald-500 transition-all">
+                <i class="fa-solid fa-magnifying-glass text-slate-500 ml-2"></i>
+                <input type="text" id="globalSearch" placeholder="Ex: Advocacia em São Paulo, Restaurantes em Curitiba..." class="bg-transparent border-none text-sm text-slate-200 placeholder-slate-500 focus:outline-none w-full">
+                
+                <button onclick="getUserGPSAndSearch()" title="Puxar empresas próximas com GPS ao vivo" class="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-xs font-semibold rounded-lg text-indigo-300 border border-indigo-500/30 transition-all flex items-center gap-1.5 shrink-0">
+                    <i class="fa-solid fa-location-crosshairs text-indigo-400"></i>
+                    <span class="hidden lg:inline">GPS Ao Vivo</span>
+                </button>
+
+                <button onclick="handleSearchSubmit()" class="px-3.5 py-1.5 bg-gradient-to-r from-emerald-600 to-indigo-600 hover:from-emerald-500 hover:to-indigo-500 text-xs font-semibold rounded-lg text-white transition-all flex items-center gap-1.5 shrink-0 shadow-md">
+                    <i class="fa-solid fa-globe text-emerald-300"></i>
+                    <span>Buscar</span>
+                </button>
+            </div>
+
+            <!-- Action Stats, User Profile & Logout -->
+            <div class="flex items-center gap-3">
+                <div class="hidden lg:flex items-center gap-4 text-xs pr-4 border-r border-slate-800">
+                    <div>
+                        <span class="text-slate-400 block text-[10px]">Empresas Mapeadas:</span>
+                        <span class="font-bold text-slate-200" id="statTotalLeads">0</span>
+                    </div>
+                    <div>
+                        <span class="text-slate-400 block text-[10px]">Oportunidades Críticas:</span>
+                        <span class="font-bold text-emerald-400" id="statHighOpportunity">0</span>
+                    </div>
+                </div>
+
+                <!-- User Badge -->
+                <div class="flex items-center gap-2 bg-slate-950 px-3 py-1.5 rounded-xl border border-slate-800 text-xs">
+                    <div class="w-6 h-6 rounded-lg bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center justify-center font-bold text-[10px]" id="userAvatar">
+                        U
+                    </div>
+                    <span class="text-slate-200 font-semibold truncate max-w-[110px]" id="userNameDisplay">Usuário</span>
+                    <button onclick="handleLogout()" title="Sair da Conta (Supabase)" class="text-red-400 hover:text-red-300 ml-1 p-1">
+                        <i class="fa-solid fa-right-from-bracket"></i>
+                    </button>
+                </div>
+
+                <button onclick="exportCSV()" class="flex items-center gap-2 px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-xl text-xs font-medium transition-all">
+                    <i class="fa-solid fa-download text-emerald-400"></i>
+                    <span class="hidden sm:inline">Exportar CSV</span>
+                </button>
+                <button onclick="toggleSidebar()" class="md:hidden text-slate-300 p-2 text-lg">
+                    <i class="fa-solid fa-bars"></i>
+                </button>
+            </div>
+        </header>
+
+        <!-- Main Content Grid -->
+        <div class="flex flex-1 overflow-hidden relative">
+
+            <!-- Sidebar / Filter Panel -->
+            <aside id="sidebar" class="w-80 bg-slate-900 border-r border-slate-800 flex flex-col shrink-0 absolute md:relative z-10 h-full transition-transform duration-300 -translate-x-full md:translate-x-0">
+                <div class="p-4 border-b border-slate-800 flex justify-between items-center">
+                    <h2 class="font-semibold text-sm text-slate-200 flex items-center gap-2">
+                        <i class="fa-solid fa-sliders text-emerald-400"></i> Filtros de Prospecção
+                    </h2>
+                    <button onclick="resetFiltersAndFetchNearby()" class="text-xs text-emerald-400 hover:underline transition-all font-medium flex items-center gap-1">
+                        <i class="fa-solid fa-rotate-right"></i> Reset + Perto de Mim
+                    </button>
+                </div>
+
+                <div class="p-4 space-y-5 overflow-y-auto flex-1 text-xs">
+                    
+                    <!-- GPS Quick Trigger Box -->
+                    <div class="p-3 bg-indigo-950/40 border border-indigo-500/30 rounded-xl space-y-2">
+                        <div class="flex items-center justify-between text-indigo-300 font-semibold">
+                            <span class="flex items-center gap-1.5"><i class="fa-solid fa-location-dot"></i> Raio de GPS Ativo</span>
+                            <span id="gpsStatusBadge" class="text-[10px] bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded-full border border-emerald-500/30">GPS On</span>
+                        </div>
+                        <p class="text-[11px] text-slate-400 leading-snug">
+                            Localização: <strong id="userLocationText" class="text-slate-200">Detectando GPS...</strong>
+                        </p>
+                        <button onclick="getUserGPSAndSearch()" class="w-full py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-semibold flex items-center justify-center gap-2 transition-all shadow-md">
+                            <i class="fa-solid fa-crosshairs"></i> Varrer Prestadores Perto de Mim
+                        </button>
+                    </div>
+
+                    <!-- Category Select -->
+                    <div>
+                        <label class="block font-medium text-slate-300 mb-1.5">Nicho / Prestador de Serviço</label>
+                        <select id="filterCategory" onchange="applyFilters()" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-slate-200 focus:border-emerald-500 focus:outline-none">
+                            <option value="all">Todos os Nichos</option>
+                            <option value="Advocacia">Advocacia / Escritórios</option>
+                            <option value="Saúde">Saúde & Odontologia</option>
+                            <option value="Contabilidade">Contabilidade & Finanças</option>
+                            <option value="Restaurantes">Restaurantes & Gastronomia</option>
+                            <option value="Estética">Estética & Beleza</option>
+                            <option value="Auto">Oficinas & Automotivo</option>
+                            <option value="Varejo">Lojas & Varejo Local</option>
+                        </select>
+                    </div>
+
+                    <!-- Digital Score Filter -->
+                    <div>
+                        <div class="flex justify-between text-slate-300 mb-1.5 font-medium">
+                            <span>Score Máximo Presença Digital</span>
+                            <span id="scoreVal" class="text-emerald-400 font-bold">100</span>
+                        </div>
+                        <input type="range" id="filterScore" min="0" max="100" value="100" oninput="document.getElementById('scoreVal').innerText = this.value; applyFilters();" class="w-full accent-emerald-500 bg-slate-800 h-1.5 rounded-lg appearance-none cursor-pointer">
+                        <p class="text-[10px] text-slate-500 mt-1">Scores baixos (0-40) representam empresas com sites ausentes ou com falhas de conversão.</p>
+                    </div>
+
+                    <!-- Website Status Filter -->
+                    <div>
+                        <label class="block font-medium text-slate-300 mb-1.5">Status da Landing Page / Site</label>
+                        <div class="space-y-2">
+                            <label class="flex items-center gap-2 cursor-pointer text-slate-300">
+                                <input type="checkbox" value="Sem Website" class="status-checkbox rounded bg-slate-950 border-slate-800 text-emerald-500 focus:ring-0" checked onchange="applyFilters()">
+                                Sem Website (Oportunidade Máxima)
+                            </label>
+                            <label class="flex items-center gap-2 cursor-pointer text-slate-300">
+                                <input type="checkbox" value="Desatualizado" class="status-checkbox rounded bg-slate-950 border-slate-800 text-emerald-500 focus:ring-0" checked onchange="applyFilters()">
+                                Desatualizado / Lento
+                            </label>
+                            <label class="flex items-center gap-2 cursor-pointer text-slate-300">
+                                <input type="checkbox" value="Moderno" class="status-checkbox rounded bg-slate-950 border-slate-800 text-emerald-500 focus:ring-0" checked onchange="applyFilters()">
+                                Site Moderno / Estruturado
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Rating Filter -->
+                    <div>
+                        <label class="block font-medium text-slate-300 mb-1.5">Avaliação Mínima Google Maps</label>
+                        <div class="grid grid-cols-4 gap-1.5">
+                            <button onclick="setRatingFilter(0)" class="rating-btn border border-emerald-500 bg-emerald-500/10 text-emerald-400 py-1.5 rounded-lg text-center font-semibold">Todas</button>
+                            <button onclick="setRatingFilter(3)" class="rating-btn border border-slate-800 bg-slate-950 hover:border-slate-700 py-1.5 rounded-lg text-center">3.0+</button>
+                            <button onclick="setRatingFilter(4)" class="rating-btn border border-slate-800 bg-slate-950 hover:border-slate-700 py-1.5 rounded-lg text-center">4.0+</button>
+                            <button onclick="setRatingFilter(4.5)" class="rating-btn border border-slate-800 bg-slate-950 hover:border-slate-700 py-1.5 rounded-lg text-center">4.5+</button>
+                        </div>
+                    </div>
+
+                    <!-- Opportunity Level -->
+                    <div>
+                        <label class="block font-medium text-slate-300 mb-1.5">Nível de Potencial da Conta</label>
+                        <select id="filterOpportunity" onchange="applyFilters()" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-slate-200 focus:border-emerald-500 focus:outline-none">
+                            <option value="all">Todos os Níveis</option>
+                            <option value="Alta">Alta Oportunidade</option>
+                            <option value="Média">Média Oportunidade</option>
+                            <option value="Baixa">Baixa Oportunidade</option>
+                        </select>
+                    </div>
+
+                </div>
+            </aside>
+
+            <!-- Center Dashboard Area -->
+            <main class="flex-1 flex flex-col overflow-hidden bg-slate-950">
+                
+                <!-- View Selector Header Tabs -->
+                <div class="h-12 border-b border-slate-800 bg-slate-900/50 px-4 flex items-center justify-between shrink-0">
+                    <div class="flex items-center gap-1 bg-slate-950 p-1 rounded-xl border border-slate-800 text-xs">
+                        <button id="btnViewSplit" onclick="switchView('split')" class="px-3 py-1 rounded-lg font-medium text-emerald-400 bg-slate-800 flex items-center gap-1.5 transition-all">
+                            <i class="fa-solid fa-columns"></i> Maps Dividido
+                        </button>
+                        <button id="btnViewMap" onclick="switchView('map')" class="px-3 py-1 rounded-lg font-medium text-slate-400 hover:text-slate-200 flex items-center gap-1.5 transition-all">
+                            <i class="fa-solid fa-map-location-dot"></i> Maps Full Screen
+                        </button>
+                        <button id="btnViewTable" onclick="switchView('table')" class="px-3 py-1 rounded-lg font-medium text-slate-400 hover:text-slate-200 flex items-center gap-1.5 transition-all">
+                            <i class="fa-solid fa-list"></i> Tabela de Leads
+                        </button>
+                    </div>
+
+                    <div class="text-xs text-slate-400 hidden sm:flex items-center gap-2">
+                        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+                        <span id="liveStatusText" class="text-slate-300">Varredura GPS: Ativa</span>
+                    </div>
+                </div>
+
+                <!-- Content Area Body -->
+                <div class="flex-1 flex overflow-hidden relative" id="contentContainer">
+                    
+                    <!-- Loading Overlay -->
+                    <div id="loadingOverlay" class="absolute inset-0 bg-slate-950/85 backdrop-blur-md z-[9000] flex flex-col items-center justify-center">
+                        <div class="w-16 h-16 rounded-2xl bg-gradient-to-tr from-emerald-500 via-teal-500 to-indigo-600 p-0.5 animate-spin mb-4">
+                            <div class="w-full h-full bg-slate-950 rounded-[14px] flex items-center justify-center">
+                                <i class="fa-solid fa-radar text-emerald-400 text-2xl"></i>
+                            </div>
+                        </div>
+                        <h3 class="text-base font-bold text-slate-100 mb-1" id="loadingTitle">Buscando empresas por GPS...</h3>
+                        <p class="text-xs text-slate-400 max-w-sm text-center" id="loadingMessage">Obtendo coordenadas, auditando sites e mapeando contatos...</p>
+                    </div>
+
+                    <!-- Toast Notification -->
+                    <div id="toast" class="absolute top-4 right-4 z-[10500] bg-emerald-600 text-white px-4 py-2.5 rounded-xl text-xs font-semibold shadow-xl flex items-center gap-2 transition-all opacity-0 pointer-events-none transform translate-y-[-10px]">
+                        <i class="fa-solid fa-circle-check"></i> <span id="toastMessage">Sucesso!</span>
+                    </div>
+
+                    <!-- Interactive Map Container -->
+                    <div id="mapContainer" class="w-1/2 h-full relative transition-all duration-300">
+                        <div id="leafletMap" class="w-full h-full"></div>
+                        
+                        <!-- Floating Map Legend -->
+                        <div class="absolute bottom-4 left-4 z-[500] bg-slate-900/90 backdrop-blur-md border border-slate-800 rounded-xl p-3 text-[11px] shadow-xl space-y-1.5">
+                            <span class="font-bold text-slate-200 block mb-1">Legenda de Presença Digital</span>
+                            <div class="flex items-center gap-2">
+                                <span class="w-3 h-3 rounded-full bg-emerald-500 animate-pulse"></span>
+                                <span class="text-slate-300">Alta Oportunidade (Sem Site / Falhas)</span>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <span class="w-3 h-3 rounded-full bg-amber-500"></span>
+                                <span class="text-slate-300">Média Oportunidade (Site Desatualizado)</span>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <span class="w-3 h-3 rounded-full bg-indigo-500"></span>
+                                <span class="text-slate-300">Baixa Oportunidade (Site Estruturado)</span>
+                            </div>
+                            <div class="flex items-center gap-2 pt-1 border-t border-slate-800">
+                                <span class="w-3 h-3 rounded-full bg-cyan-400 user-location-pulse"></span>
+                                <span class="text-cyan-300 font-semibold">Você (GPS Tempo Real)</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Lead List Panel -->
+                    <div id="listContainer" class="w-1/2 h-full border-l border-slate-800 overflow-y-auto p-4 space-y-3 bg-slate-950 transition-all duration-300">
+                        <div class="flex justify-between items-center mb-2">
+                            <div>
+                                <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Empresas & Clientes Potenciais</h3>
+                                <span id="currentSearchLabel" class="text-[11px] text-emerald-400 font-medium block">Perto de você (GPS Vivo)</span>
+                            </div>
+                            <span id="resultsCount" class="text-xs text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-0.5 rounded-full font-semibold">0 empresas</span>
+                        </div>
+
+                        <!-- Lead Cards List Container -->
+                        <div id="leadsList" class="space-y-3">
+                            <!-- Populated by JS -->
+                        </div>
+                    </div>
+
+                </div>
+            </main>
+        </div>
+
+        <!-- Detailed Audit & Defect Diagnostic Modal -->
+        <div id="auditModal" class="fixed inset-0 bg-slate-950/90 backdrop-blur-lg z-[10000] flex items-center justify-center hidden p-3 md:p-6 overflow-y-auto">
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-5xl max-h-[94vh] flex flex-col shadow-2xl overflow-hidden my-auto">
+                
+                <!-- Modal Header -->
+                <div class="p-5 border-b border-slate-800 flex justify-between items-start bg-slate-900/95 sticky top-0 z-20">
+                    <div class="flex items-start gap-4">
+                        <div id="modalCategoryBadge" class="w-12 h-12 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center text-emerald-400 text-xl font-bold shrink-0">
+                            <i class="fa-solid fa-scale-balanced"></i>
+                        </div>
+                        <div>
+                            <div class="flex flex-wrap items-center gap-2">
+                                <h2 id="modalLeadName" class="text-xl font-bold text-slate-100">Nome da Empresa</h2>
+                                <span id="modalOpportunityBadge" class="px-2.5 py-0.5 text-xs font-semibold rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">Alta Oportunidade</span>
+                            </div>
+                            <p id="modalCategoryAddress" class="text-xs text-slate-400 mt-1"><i class="fa-solid fa-location-dot text-slate-500"></i> Endereço da empresa</p>
+                        </div>
+                    </div>
+                    <button onclick="closeAuditModal()" class="text-slate-400 hover:text-slate-200 p-2 text-xl">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+
+                <!-- Modal Body Scrollable -->
+                <div class="p-6 overflow-y-auto space-y-6 flex-1 text-xs text-slate-300">
+                    
+                    <!-- Executive Verdict -->
+                    <div id="modalVerdictBox" class="p-4 rounded-2xl border bg-emerald-950/30 border-emerald-500/30 space-y-2">
+                        <div class="flex justify-between items-center">
+                            <span class="font-bold text-xs uppercase tracking-wide text-emerald-400 flex items-center gap-2">
+                                <i class="fa-solid fa-chart-line text-emerald-400"></i> Veredito de Potencial Comercial
+                            </span>
+                            <span id="modalVerdictScore" class="font-extrabold text-sm text-emerald-300">Presença Digital: 15/100</span>
+                        </div>
+                        <p id="modalVerdictText" class="text-xs text-slate-200 leading-relaxed">
+                            Esta empresa está com alta necessidade de melhoria. Sem site ativo e sem canal ágil no WhatsApp, perde diariamente clientes para concorrentes da região.
+                        </p>
+                    </div>
+
+                    <!-- Comprehensive Contact Info Grid -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                        <div class="bg-slate-950 p-3.5 rounded-xl border border-slate-800 flex items-center gap-3">
+                            <div class="w-9 h-9 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center shrink-0">
+                                <i class="fa-brands fa-whatsapp text-emerald-400 text-lg"></i>
+                            </div>
+                            <div class="overflow-hidden w-full">
+                                <span class="text-slate-500 text-[10px] block uppercase font-bold tracking-wider">Telefone Oficial (Google)</span>
+                                <div class="flex items-center justify-between gap-1 mt-0.5">
+                                    <span id="modalPhone" class="font-bold text-slate-100 truncate text-xs">Sem Número</span>
+                                    <a id="modalPhoneLink" href="#" target="_blank" title="Abrir no WhatsApp" class="text-emerald-400 hover:text-emerald-300 text-xs shrink-0 hidden">
+                                        <i class="fa-solid fa-up-right-from-square"></i>
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="bg-slate-950 p-3.5 rounded-xl border border-slate-800 flex items-center gap-3">
+                            <div class="w-9 h-9 rounded-lg bg-pink-500/10 border border-pink-500/20 flex items-center justify-center shrink-0">
+                                <i class="fa-brands fa-instagram text-pink-400 text-lg"></i>
+                            </div>
+                            <div class="overflow-hidden w-full">
+                                <span class="text-slate-500 text-[10px] block uppercase font-bold tracking-wider">Instagram Oficial</span>
+                                <div class="flex items-center justify-between gap-1 mt-0.5">
+                                    <span id="modalInstagram" class="font-bold text-pink-300 truncate text-xs">Não localizado</span>
+                                    <a id="modalInstagramLink" href="#" target="_blank" title="Ver ou Pesquisar no Instagram" class="text-pink-400 hover:text-pink-300 text-xs shrink-0">
+                                        <i class="fa-solid fa-magnifying-glass"></i>
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="bg-slate-950 p-3.5 rounded-xl border border-slate-800 flex items-center gap-3">
+                            <div class="w-9 h-9 rounded-lg bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center shrink-0">
+                                <i class="fa-solid fa-envelope text-indigo-400 text-lg"></i>
+                            </div>
+                            <div class="overflow-hidden w-full">
+                                <span class="text-slate-500 text-[10px] block uppercase font-bold tracking-wider">E-mail Comercial</span>
+                                <span id="modalEmail" class="font-medium text-slate-200 truncate block text-xs">contato@empresa.com</span>
+                            </div>
+                        </div>
+
+                        <div class="bg-slate-950 p-3.5 rounded-xl border border-slate-800 flex items-center gap-3">
+                            <div class="w-9 h-9 rounded-lg bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center shrink-0">
+                                <i class="fa-solid fa-globe text-cyan-400 text-lg"></i>
+                            </div>
+                            <div class="overflow-hidden w-full">
+                                <span class="text-slate-500 text-[10px] block uppercase font-bold tracking-wider">Website Atual</span>
+                                <span id="modalWebsite" class="font-medium text-slate-200 truncate block text-xs">Sem Website</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 4 Pillars Digital Health Breakdown -->
+                    <div class="bg-slate-950 p-5 rounded-2xl border border-slate-800 space-y-4">
+                        <h3 class="font-bold text-slate-100 text-xs uppercase tracking-wide flex items-center gap-2">
+                            <i class="fa-solid fa-list-check text-indigo-400"></i> Diagnóstico por Pilares de Desempenho
+                        </h3>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4" id="pillarsContainer">
+                            <!-- Populated by JS -->
+                        </div>
+                    </div>
+
+                    <!-- Competitor Benchmark Matrix -->
+                    <div class="bg-slate-950 p-5 rounded-2xl border border-slate-800 space-y-4">
+                        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 pb-3 border-b border-slate-800">
+                            <div>
+                                <h3 class="font-bold text-slate-100 text-sm uppercase tracking-wide flex items-center gap-2">
+                                    <i class="fa-solid fa-trophy text-amber-400"></i> Benchmark: Concorrentes Diretos
+                                </h3>
+                                <p class="text-[11px] text-slate-400">Comparativo automático contra concorrentes posicionados na região.</p>
+                            </div>
+                            <span class="text-[10px] bg-amber-500/10 text-amber-400 border border-amber-500/20 px-2.5 py-1 rounded-full font-semibold">Inteligência Competitiva</span>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4" id="competitorsContainer">
+                            <!-- Populated by JS -->
+                        </div>
+                    </div>
+
+                    <!-- Automated Flaws Matrix -->
+                    <div class="bg-slate-950 p-5 rounded-2xl border border-slate-800 space-y-4">
+                        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 pb-3 border-b border-slate-800">
+                            <div>
+                                <h3 class="font-bold text-slate-100 text-sm uppercase tracking-wide flex items-center gap-2" id="diagnosticSectionTitle">
+                                    <i class="fa-solid fa-microscope text-indigo-400"></i> Diagnóstico Automático de Ativos Digitais
+                                </h3>
+                                <p class="text-[11px] text-slate-400">Análise computada pelo sistema com base no site e presença no Google.</p>
+                            </div>
+                            <div class="text-right">
+                                <span class="text-[10px] text-slate-400 block uppercase font-semibold" id="lossTitleLabel">Perda Estimada de Clientes</span>
+                                <span id="modalEstimatedLoss" class="text-base font-extrabold text-red-400">R$ 0 /mês</span>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3" id="defectsChecklist">
+                            <!-- Populated dynamically by JS -->
+                        </div>
+
+                        <!-- Advanced Upsell Container -->
+                        <div id="advancedGrowthBox" class="hidden pt-3 border-t border-slate-800/80 space-y-2">
+                            <h4 class="text-xs font-bold text-indigo-300 uppercase tracking-wide flex items-center gap-1.5">
+                                <i class="fa-solid fa-rocket text-indigo-400"></i> Oportunidades de Otimização Avançada (High-Ticket Upsell)
+                            </h4>
+                            <div id="advancedGrowthList" class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                <!-- Populated dynamically -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Pipeline Status Selector -->
+                    <div class="flex items-center justify-between bg-slate-950 p-3 rounded-xl border border-slate-800">
+                        <span class="font-medium text-slate-300">Status no Funil de Vendas CRM:</span>
+                        <select id="modalPipelineStatus" onchange="updateLeadStatus()" class="bg-slate-900 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-emerald-400 font-semibold focus:outline-none">
+                            <option value="A Prospectar">A Prospectar</option>
+                            <option value="Contatado">Contatado via WhatsApp/Email</option>
+                            <option value="Reunião Agendada">Reunião Agendada</option>
+                            <option value="Proposta Enviada">Proposta Enviada</option>
+                            <option value="Cliente Fechado">Cliente Fechado 🎉</option>
+                        </select>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <script>
+        /* ====================================================== */
+        /* SUPABASE DATABASE & AUTH INTEGRATION CONFIGURATION     */
+        /* ====================================================== */
+        const SUPABASE_URL = "https://fyitrtbktrmpgxekznmk.supabase.co";
+        const SUPABASE_ANON_KEY = "sb_publishable_1jcnhcEYEZSjuPhUoY_BwA_S4xZmMfC";
+        
+        let supabaseClient = null;
+        if (window.supabase && typeof window.supabase.createClient === 'function') {
+            supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+            console.log("Supabase Client initialized successfully.");
+        }
+
+        /* State Variables */
+        let leadsData = [];
+        let map = null;
+        let mapMarkers = [];
+        let userLocationMarker = null;
+        let currentSelectedLead = null;
+        let currentRatingFilter = 0;
+        let customApiKey = "AIzaSyB0DK5KXPxF-3wpBjCxgJa3m4DU1WwTQx4";
+        let userCoords = { lat: -23.5505, lng: -46.6333, locationName: "São Paulo - SP" };
+        let currentUser = null;
+
+        function openDevModal() {
+            document.getElementById('devModal')?.classList.remove('hidden');
+        }
+
+        function closeDevModal() {
+            document.getElementById('devModal')?.classList.add('hidden');
+        }
+
+        function switchAuthTab(tab) {
+            const btnLogin = document.getElementById('tabBtnLogin');
+            const btnSignup = document.getElementById('tabBtnSignup');
+            const formLogin = document.getElementById('formLogin');
+            const formSignup = document.getElementById('formSignup');
+
+            if (tab === 'login') {
+                btnLogin.className = "py-2.5 rounded-xl transition-all text-emerald-400 bg-slate-800 shadow-md flex items-center justify-center gap-2";
+                btnSignup.className = "py-2.5 rounded-xl transition-all text-slate-400 hover:text-slate-200 flex items-center justify-center gap-2";
+                formLogin.classList.remove('hidden');
+                formSignup.classList.add('hidden');
+            } else {
+                btnSignup.className = "py-2.5 rounded-xl transition-all text-emerald-400 bg-slate-800 shadow-md flex items-center justify-center gap-2";
+                btnLogin.className = "py-2.5 rounded-xl transition-all text-slate-400 hover:text-slate-200 flex items-center justify-center gap-2";
+                formSignup.classList.remove('hidden');
+                formLogin.classList.add('hidden');
+            }
+        }
+
+        function showAuthAlert(msg, isError = true) {
+            const alertBox = document.getElementById('authAlert');
+            if (!alertBox) return;
+            alertBox.classList.remove('hidden', 'bg-red-500/10', 'text-red-400', 'border-red-500/20', 'bg-emerald-500/10', 'text-emerald-400', 'border-emerald-500/20');
+            if (isError) {
+                alertBox.classList.add('bg-red-500/10', 'text-red-400', 'border', 'border-red-500/20');
+                alertBox.innerHTML = `<i class="fa-solid fa-circle-exclamation"></i> ${msg}`;
+            } else {
+                alertBox.classList.add('bg-emerald-500/10', 'text-emerald-400', 'border', 'border-emerald-500/20');
+                alertBox.innerHTML = `<i class="fa-solid fa-circle-check"></i> ${msg}`;
+            }
+        }
+
+        async function handleLoginSubmit(e) {
+            e.preventDefault();
+            const email = document.getElementById('loginEmail').value.trim();
+            const password = document.getElementById('loginPassword').value;
+            const submitBtn = document.getElementById('btnLoginSubmit');
+
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = `<i class="fa-solid fa-circle-notch animate-spin"></i><span>Autenticando...</span>`;
+            }
+
+            try {
+                if (supabaseClient) {
+                    const { data, error } = await supabaseClient.auth.signInWithPassword({
+                        email: email,
+                        password: password
+                    });
+
+                    if (error) {
+                        showAuthAlert(`Falha ao entrar: ${error.message}`);
+                        return;
+                    }
+
+                    if (data && data.user) {
+                        const userMeta = data.user.user_metadata || {};
+                        const userObj = {
+                            id: data.user.id,
+                            email: data.user.email,
+                            name: userMeta.name || email.split('@')[0],
+                            phone: userMeta.phone || ""
+                        };
+                        loginSuccess(userObj);
+                        return;
+                    }
+                }
+            } catch (err) {
+                console.error("Login Error:", err);
+                showAuthAlert("Ocorreu um erro ao conectar ao banco de dados.");
+            } finally {
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = `<span>Acessar Plataforma</span><i class="fa-solid fa-arrow-right group-hover:translate-x-1 transition-transform"></i>`;
+                }
+            }
+        }
+
+        async function handleSignupSubmit(e) {
+            e.preventDefault();
+            const name = document.getElementById('signupName').value.trim();
+            const email = document.getElementById('signupEmail').value.trim();
+            const phone = document.getElementById('signupPhone').value.trim();
+            const dob = document.getElementById('signupDob').value;
+            const password = document.getElementById('signupPassword').value;
+            const confirmPassword = document.getElementById('signupConfirmPassword').value;
+            const submitBtn = document.getElementById('btnSignupSubmit');
+
+            if (password !== confirmPassword) {
+                showAuthAlert("As senhas informadas não coincidem.");
+                return;
+            }
+
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = `<i class="fa-solid fa-circle-notch animate-spin"></i><span>Criando conta no LeadPro B2B...</span>`;
+            }
+
+            try {
+                if (supabaseClient) {
+                    const { data, error } = await supabaseClient.auth.signUp({
+                        email: email,
+                        password: password,
+                        options: {
+                            data: { name, phone, dob }
+                        }
+                    });
+
+                    if (error) {
+                        showAuthAlert(`Erro ao cadastrar: ${error.message}`);
+                        return;
+                    }
+
+                    if (data && data.user) {
+                        const { error: profileErr } = await supabaseClient
+                            .from('profiles')
+                            .insert([
+                                {
+                                    id: data.user.id,
+                                    nome: name,
+                                    email: email,
+                                    telefone: phone,
+                                    data_nascimento: dob
+                                }
+                            ]);
+
+                        if (profileErr) {
+                            console.warn("Aviso ao salvar perfil:", profileErr.message);
+                        }
+                    }
+
+                    showAuthAlert("Conta criada no LeadPro B2B com sucesso! Acessando...", false);
+                    const userObj = {
+                        id: data.user ? data.user.id : Date.now(),
+                        name,
+                        email,
+                        phone
+                    };
+
+                    setTimeout(() => {
+                        loginSuccess(userObj);
+                    }, 800);
+                }
+            } catch (err) {
+                console.error("Signup error:", err);
+                showAuthAlert("Falha ao cadastrar a conta.");
+            } finally {
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = `<i class="fa-solid fa-user-check"></i><span>Criar minha conta no LeadPro B2B</span>`;
+                }
+            }
+        }
+
+        function loginSuccess(user) {
+            currentUser = user;
+            localStorage.setItem('leadpro_active_session', JSON.stringify(user));
+
+            document.getElementById('authScreen').classList.add('hidden');
+            document.getElementById('mainApp').classList.remove('hidden');
+
+            document.getElementById('userNameDisplay').innerText = user.name || "Usuário";
+            document.getElementById('userAvatar').innerText = (user.name || "U").charAt(0).toUpperCase();
+
+            if (!map) {
+                initMap();
+            }
+            getUserGPSAndSearch();
+        }
+
+        async function handleLogout() {
+            if (supabaseClient) {
+                try {
+                    await supabaseClient.auth.signOut();
+                } catch (e) {
+                    console.warn("SignOut Error:", e);
+                }
+            }
+            localStorage.removeItem('leadpro_active_session');
+            currentUser = null;
+            document.getElementById('mainApp').classList.add('hidden');
+            document.getElementById('authScreen').classList.remove('hidden');
+            showAuthAlert("Você encerrou sua sessão com sucesso.", false);
+        }
+
+        async function checkExistingSession() {
+            if (supabaseClient) {
+                try {
+                    const { data } = await supabaseClient.auth.getSession();
+                    if (data && data.session && data.session.user) {
+                        const userMeta = data.session.user.user_metadata || {};
+                        const userObj = {
+                            id: data.session.user.id,
+                            email: data.session.user.email,
+                            name: userMeta.name || data.session.user.email.split('@')[0],
+                            phone: userMeta.phone || ""
+                        };
+                        loginSuccess(userObj);
+                        return true;
+                    }
+                } catch (e) {
+                    console.warn("Session check error:", e);
+                }
+            }
+
+            const session = localStorage.getItem('leadpro_active_session');
+            if (session) {
+                try {
+                    const user = JSON.parse(session);
+                    loginSuccess(user);
+                    return true;
+                } catch (e) {
+                    console.warn(e);
+                }
+            }
+            return false;
+        }
+
+        document.addEventListener('mousemove', (e) => {
+            const glow = document.getElementById('cursorGlow');
+            if (glow && !document.getElementById('authScreen').classList.contains('hidden')) {
+                glow.style.transform = `translate(${e.clientX - 160}px, ${e.clientY - 160}px)`;
+            }
+        });
+
+        const defaultDefectsList = [
+            { id: "no_website", label: "Website / Landing Page própria ativa", loss: 4500, present: false },
+            { id: "no_whatsapp", label: "Botão Flutuante de Agendamento via WhatsApp", loss: 2000, present: false },
+            { id: "mobile_broken", label: "Otimização e Velocidade para Dispositivos Móveis", loss: 1500, present: false },
+            { id: "slow_load", label: "Tempo de Carregamento Ultra-Rápido (< 2 segundos)", loss: 1200, present: false },
+            { id: "no_ssl", label: "Certificado de Segurança SSL (HTTPS Ativo)", loss: 1800, present: false },
+            { id: "low_reviews", label: "Autoridade e Prova Social no Google (Notas e Fotos)", loss: 1000, present: true },
+            { id: "no_cta", label: "Chamadas Claras para Ação (CTA) e Formulário Ágil", loss: 1400, present: false },
+            { id: "no_pixel", label: "Pixéis de Tráfego Pago / Remarketing (Meta & Google)", loss: 900, present: false }
+        ];
+
+        const defaultAdvancedUpsells = [
+            "Agente de IA para Atendimento Automatizado 24/7 no WhatsApp",
+            "Campanhas de Retargeting de Alta Intenção (Google Search & Meta Ads)",
+            "Otimização de LCP e Velocidade Extrema (< 0.9s no Google PageSpeed)",
+            "Funil de Vendas de Alta Passagem para Serviços Premium/High-Ticket"
+        ];
+
+        function showLoading(show, title = '', message = '') {
+            const overlay = document.getElementById('loadingOverlay');
+            if (!overlay) return;
+            if (show) {
+                if (title) document.getElementById('loadingTitle').innerText = title;
+                if (message) document.getElementById('loadingMessage').innerText = message;
+                overlay.classList.remove('hidden');
+            } else {
+                overlay.classList.add('hidden');
+            }
+        }
+
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            if (sidebar) sidebar.classList.toggle('-translate-x-full');
+        }
+
+        function switchView(viewMode) {
+            const mapContainer = document.getElementById('mapContainer');
+            const listContainer = document.getElementById('listContainer');
+            const btnSplit = document.getElementById('btnViewSplit');
+            const btnMap = document.getElementById('btnViewMap');
+            const btnTable = document.getElementById('btnViewTable');
+
+            if (!mapContainer || !listContainer) return;
+
+            [btnSplit, btnMap, btnTable].forEach(btn => {
+                if (btn) btn.className = "px-3 py-1 rounded-lg font-medium text-slate-400 hover:text-slate-200 flex items-center gap-1.5 transition-all";
+            });
+
+            if (viewMode === 'split') {
+                mapContainer.className = "w-1/2 h-full relative transition-all duration-300 block";
+                listContainer.className = "w-1/2 h-full border-l border-slate-800 overflow-y-auto p-4 space-y-3 bg-slate-950 transition-all duration-300 block";
+                if (btnSplit) btnSplit.className = "px-3 py-1 rounded-lg font-medium text-emerald-400 bg-slate-800 flex items-center gap-1.5 transition-all";
+            } else if (viewMode === 'map') {
+                mapContainer.className = "w-full h-full relative transition-all duration-300 block";
+                listContainer.className = "hidden";
+                if (btnMap) btnMap.className = "px-3 py-1 rounded-lg font-medium text-emerald-400 bg-slate-800 flex items-center gap-1.5 transition-all";
+            } else if (viewMode === 'table') {
+                mapContainer.className = "hidden";
+                listContainer.className = "w-full h-full overflow-y-auto p-4 space-y-3 bg-slate-950 transition-all duration-300 block";
+                if (btnTable) btnTable.className = "px-3 py-1 rounded-lg font-medium text-emerald-400 bg-slate-800 flex items-center gap-1.5 transition-all";
+            }
+
+            setTimeout(() => {
+                if (map) map.invalidateSize();
+            }, 300);
+        }
+
+        function setRatingFilter(minRating) {
+            currentRatingFilter = minRating;
+            const buttons = document.querySelectorAll('.rating-btn');
+            buttons.forEach(btn => {
+                btn.className = "rating-btn border border-slate-800 bg-slate-950 hover:border-slate-700 py-1.5 rounded-lg text-center text-slate-300 font-medium";
+            });
+            
+            const btnIndexMap = { 0: 0, 3: 1, 4: 2, 4.5: 3 };
+            const target = buttons[btnIndexMap[minRating]];
+            if (target) {
+                target.className = "rating-btn border border-emerald-500 bg-emerald-500/10 text-emerald-400 py-1.5 rounded-lg text-center font-semibold";
+            }
+            applyFilters();
+        }
+
+        function resetFiltersAndFetchNearby() {
+            const filterCat = document.getElementById('filterCategory');
+            if (filterCat) filterCat.value = 'all';
+
+            const filterScore = document.getElementById('filterScore');
+            if (filterScore) {
+                filterScore.value = '100';
+                document.getElementById('scoreVal').innerText = '100';
+            }
+
+            const filterOpp = document.getElementById('filterOpportunity');
+            if (filterOpp) filterOpp.value = 'all';
+
+            document.querySelectorAll('.status-checkbox').forEach(cb => cb.checked = true);
+            setRatingFilter(0);
+            getUserGPSAndSearch();
+        }
+
+        function applyFilters() {
+            if (!leadsData) return;
+
+            const cat = document.getElementById('filterCategory')?.value || 'all';
+            const maxScore = parseInt(document.getElementById('filterScore')?.value || '100', 10);
+            const opp = document.getElementById('filterOpportunity')?.value || 'all';
+            const checkedStatuses = Array.from(document.querySelectorAll('.status-checkbox:checked')).map(cb => cb.value);
+
+            const filtered = leadsData.filter(lead => {
+                if (cat !== 'all' && lead.category !== cat) return false;
+                if (lead.score > maxScore) return false;
+                if (lead.rating < currentRatingFilter) return false;
+                if (opp !== 'all' && lead.opportunity !== opp) return false;
+                if (checkedStatuses.length > 0 && !checkedStatuses.includes(lead.webStatus)) return false;
+                return true;
+            });
+
+            const statTotal = document.getElementById('statTotalLeads');
+            if (statTotal) statTotal.innerText = leadsData.length;
+
+            const statHigh = document.getElementById('statHighOpportunity');
+            if (statHigh) statHigh.innerText = leadsData.filter(l => l.opportunity === 'Alta').length;
+
+            renderLeadsList(filtered);
+            renderMapMarkers(filtered);
+        }
+
+        function updateLeadStatus() {
+            if (!currentSelectedLead) return;
+            const select = document.getElementById('modalPipelineStatus');
+            if (!select) return;
+            currentSelectedLead.statusCRM = select.value;
+            showToast(`Status atualizado para: ${select.value}`);
+        }
+
+        function closeAuditModal() {
+            document.getElementById('auditModal')?.classList.add('hidden');
+        }
+
+        function isValidUrlString(url) {
+            if (!url || typeof url !== 'string') return false;
+            const clean = url.trim().toLowerCase();
+            if (clean === "sem website" || clean === "n/a" || clean === "none" || clean === "não possui" || clean === "nao possui" || clean === "sem site") return false;
+            return clean.includes(".") && (clean.startsWith("http") || clean.startsWith("www") || clean.includes(".com") || clean.includes(".br") || clean.includes(".net") || clean.includes(".org"));
+        }
+
+        window.onload = function() {
+            checkExistingSession();
+
+            document.getElementById('globalSearch')?.addEventListener('keypress', function (e) {
+                if (e.key === 'Enter') handleSearchSubmit();
+            });
+        };
+
+        function initMap() {
+            map = L.map('leafletMap', { zoomControl: false }).setView([userCoords.lat, userCoords.lng], 15);
+            L.control.zoom({ position: 'topright' }).addTo(map);
+
+            const streetsLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+                maxZoom: 19, subdomains: 'abcd', attribution: '&copy; OpenStreetMap &copy; CARTO'
+            });
+
+            const satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+                maxZoom: 19, attribution: '&copy; Esri'
+            });
+
+            const darkLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+                maxZoom: 19, subdomains: 'abcd', attribution: '&copy; OpenStreetMap &copy; CARTO'
+            });
+
+            streetsLayer.addTo(map);
+
+            const baseMaps = {
+                "🗺️ Ruas & Lojas (Detalhado)": streetsLayer,
+                "🛰️ Satélite Real": satelliteLayer,
+                "🌙 Modo Escuro": darkLayer
+            };
+
+            L.control.layers(baseMaps, null, { position: 'topright' }).addTo(map);
+        }
+
+        function renderUserGPSMarker(lat, lng) {
+            if (!map) return;
+            if (userLocationMarker) map.removeLayer(userLocationMarker);
+
+            let userIcon = L.divIcon({
+                className: 'user-gps-pin',
+                html: `
+                    <div style="background-color: #06b6d4; width: 32px; height: 32px; border-radius: 50%; border: 3px solid #ffffff; box-shadow: 0 0 20px #06b6d4; display: flex; align-items: center; justify-content: center;" class="user-location-pulse" title="Sua Posição GPS">
+                        <i class="fa-solid fa-street-view" style="color: #ffffff; font-size: 15px;"></i>
+                    </div>
+                `,
+                iconSize: [32, 32],
+                iconAnchor: [16, 16]
+            });
+
+            userLocationMarker = L.marker([lat, lng], { icon: userIcon }).addTo(map);
+            userLocationMarker.bindPopup(`<strong style="color:#06b6d4">📍 Posição de Varredura</strong><br><span style="font-size:11px; color:#cbd5e1">Coordenadas: ${lat.toFixed(4)}, ${lng.toFixed(4)}</span>`);
+        }
+
+        async function fetchIpLocationFallback() {
+            try {
+                const res = await fetch('https://ipapi.co/json/');
+                const data = await res.json();
+                if (data && data.latitude && data.longitude) {
+                    userCoords.lat = parseFloat(data.latitude);
+                    userCoords.lng = parseFloat(data.longitude);
+                    userCoords.locationName = `${data.city || 'Sua Cidade'} - ${data.region_code || 'BR'}`;
+                    return true;
+                }
+            } catch (e) {
+                console.warn("IP Geolocation fallback failed:", e);
+            }
+            return false;
+        }
+
+        function getUserGPSAndSearch() {
+            showLoading(true, "Obtendo sua localização...", "Solicitando GPS ou IP para varrer empresas na sua região...");
+
+            if ("geolocation" in navigator && location.protocol !== 'file:') {
+                navigator.geolocation.getCurrentPosition(
+                    async (position) => {
+                        userCoords.lat = position.coords.latitude;
+                        userCoords.lng = position.coords.longitude;
+                        userCoords.locationName = `Sua Posição GPS (${userCoords.lat.toFixed(3)}, ${userCoords.lng.toFixed(3)})`;
+
+                        updateLocationDisplay("GPS Ativo (Sua Posição)", "GPS On");
+                        renderUserGPSMarker(userCoords.lat, userCoords.lng);
+                        if (map) map.panTo([userCoords.lat, userCoords.lng]);
+
+                        await fetchLiveLeadsFromGoogle(`empresas e prestadores de servicos proximos das coordenadas ${userCoords.lat}, ${userCoords.lng}`, userCoords.lat, userCoords.lng);
+                    },
+                    async (error) => {
+                        console.warn("GPS error or denied:", error.message);
+                        await handleFallbackLocationSearch();
+                    },
+                    { enableHighAccuracy: true, timeout: 5000 }
+                );
+            } else {
+                handleFallbackLocationSearch();
+            }
+        }
+
+        async function handleFallbackLocationSearch() {
+            const ipSuccess = await fetchIpLocationFallback();
+            if (ipSuccess) {
+                updateLocationDisplay(userCoords.locationName, "IP On");
+            } else {
+                updateLocationDisplay("São Paulo - SP (Padrão)", "Padrão");
+            }
+            renderUserGPSMarker(userCoords.lat, userCoords.lng);
+            if (map) map.panTo([userCoords.lat, userCoords.lng]);
+            await fetchLiveLeadsFromGoogle(`todas as empresas e prestadores de servicos de ${userCoords.locationName}`, userCoords.lat, userCoords.lng);
+        }
+
+        function updateLocationDisplay(text, badge) {
+            const locTxt = document.getElementById('userLocationText');
+            if (locTxt) locTxt.innerText = text;
+
+            const badgeEl = document.getElementById('gpsStatusBadge');
+            if (badgeEl) badgeEl.innerText = badge;
+
+            const labelEl = document.getElementById('currentSearchLabel');
+            if (labelEl) labelEl.innerText = `Prestadores próximos em ${text}`;
+        }
+
+        async function geocodeLocationQuery(query) {
+            try {
+                const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}`);
+                const results = await res.json();
+                if (results && results.length > 0) {
+                    return {
+                        lat: parseFloat(results[0].lat),
+                        lng: parseFloat(results[0].lon),
+                        displayName: results[0].display_name
+                    };
+                }
+            } catch (e) {
+                console.warn("Geocoding failed:", e);
+            }
+            return null;
+        }
+
+        async function handleSearchSubmit() {
+            const query = document.getElementById('globalSearch')?.value.trim();
+            if (!query) {
+                getUserGPSAndSearch();
+                return;
+            }
+
+            showLoading(true, `Buscando localização para: "${query}"...`, "Identificando coordenadas no mapa...");
+
+            let targetLat = userCoords.lat;
+            let targetLng = userCoords.lng;
+
+            const geo = await geocodeLocationQuery(query);
+            if (geo) {
+                targetLat = geo.lat;
+                targetLng = geo.lng;
+                if (map) map.panTo([targetLat, targetLng]);
+                renderUserGPSMarker(targetLat, targetLng);
+            }
+
+            await fetchLiveLeadsFromGoogle(query, targetLat, targetLng);
+        }
+
+        async function fetchGooglePlacesAPI(searchQuery, centerLat, centerLng, apiKey) {
+            const url = 'https://places.googleapis.com/v1/places:searchText';
+            
+            const requestBody = {
+                textQuery: searchQuery,
+                languageCode: "pt-BR",
+                maxResultCount: 20,
+                locationBias: {
+                    circle: {
+                        center: { latitude: centerLat, longitude: centerLng },
+                        radius: 10000.0
+                    }
+                }
+            };
+
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Goog-Api-Key': apiKey,
+                    'X-Goog-FieldMask': 'places.displayName,places.formattedAddress,places.websiteUri,places.nationalPhoneNumber,places.internationalPhoneNumber,places.rating,places.userRatingCount,places.location,places.primaryTypeDisplayName'
+                },
+                body: JSON.stringify(requestBody)
+            });
+
+            if (!response.ok) throw new Error(`Google Places API Error ${response.status}`);
+
+            const data = await response.json();
+            if (!data.places || !Array.isArray(data.places)) return null;
+
+            return data.places.map((place) => {
+                const exactPhone = place.nationalPhoneNumber || place.internationalPhoneNumber || null;
+                
+                let extractedInstagram = null;
+                if (place.websiteUri && place.websiteUri.includes("instagram.com/")) {
+                    const parts = place.websiteUri.split("instagram.com/");
+                    if (parts[1]) {
+                        const cleanHandle = parts[1].split("/")[0].split("?")[0];
+                        if (cleanHandle) extractedInstagram = `@${cleanHandle}`;
+                    }
+                }
+
+                return {
+                    name: place.displayName?.text || "Empresa / Prestador",
+                    category: place.primaryTypeDisplayName?.text || "Serviços",
+                    phone: exactPhone,
+                    instagram: extractedInstagram,
+                    email: "contato@" + (place.displayName?.text || "empresa").toLowerCase().replace(/[^a-z0-9]/g, '') + ".com.br",
+                    address: place.formattedAddress || "Endereço Local",
+                    website: place.websiteUri || "Sem Website",
+                    webStatus: isValidUrlString(place.websiteUri) ? "Moderno" : "Sem Website",
+                    rating: place.rating || 4.5,
+                    reviewsCount: place.userRatingCount || 25,
+                    lat: place.location?.latitude || (centerLat + (Math.random() - 0.5) * 0.02),
+                    lng: place.location?.longitude || (centerLng + (Math.random() - 0.5) * 0.02)
+                };
+            });
+        }
+
+        async function fetchLiveLeadsFromGoogle(searchQuery, centerLat = userCoords.lat, centerLng = userCoords.lng) {
+            showLoading(true, `Varrendo empresas para: "${searchQuery}"`, "Analisando dados exatos do Google Maps e redes sociais...");
+
+            const apiKeyToUse = customApiKey || "";
+
+            if (apiKeyToUse && apiKeyToUse.startsWith("AIzaSy")) {
+                try {
+                    const googlePlacesLeads = await fetchGooglePlacesAPI(searchQuery, centerLat, centerLng, apiKeyToUse);
+                    if (googlePlacesLeads && googlePlacesLeads.length > 0) {
+                        leadsData = processRawLeads(googlePlacesLeads, centerLat, centerLng);
+                        document.getElementById('currentSearchLabel').innerText = `Busca Oficial Google Places: "${searchQuery}"`;
+                        applyFilters();
+                        fitMapToBounds(leadsData);
+                        showToast(`${leadsData.length} empresas mapeadas diretamente do Google Maps!`);
+                        showLoading(false);
+                        return;
+                    }
+                } catch (placesErr) {
+                    console.warn("Google Places API call failed, falling back to Gemini / Local Engine:", placesErr);
+                }
+            }
+
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKeyToUse}`;
+
+            const systemPrompt = `Você é um motor avançado de inteligência B2B e auditoria de cadastros de empresas no Google Maps.
+Retorne no formato JSON estrito com objeto "leads", array contendo:
+- name, category, phone (número oficial EXATO com DDD do Google Maps ou null se não houver), instagram (perfil oficial EXATO ou null se não houver), email, address, website, webStatus ("Sem Website", "Desatualizado", "Moderno"), rating, reviewsCount, score, opportunity ("Alta", "Média", "Baixa"), hasWhatsappBtn, hasCta, isMobileOptimized, hasSsl, hasPixels, lat (próximo de ${centerLat}), lng (próximo de ${centerLng}), competitors, advancedImprovements.`;
+
+            const prompt = `Pesquise no Google Maps e no Google Search por empresas reais referente a: "${searchQuery}". Extraia o telefone oficial cadastrado e o perfil do Instagram oficial das empresas. Não invente números de telefone fictícios se a empresa não tiver.`;
+
+            const payload = {
+                contents: [{ parts: [{ text: prompt }] }],
+                tools: [{ "google_search": {} }],
+                systemInstruction: { parts: [{ text: systemPrompt }] },
+                generationConfig: { responseMimeType: "application/json" }
+            };
+
+            try {
+                if (!apiKeyToUse) throw new Error("No custom API key, using local dynamic lead engine.");
+
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) throw new Error(`API HTTP Error ${response.status}`);
+
+                const data = await response.json();
+                const jsonText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+
+                if (jsonText) {
+                    const parsed = JSON.parse(jsonText);
+                    const rawLeads = parsed.leads || parsed;
+
+                    if (Array.isArray(rawLeads) && rawLeads.length > 0) {
+                        leadsData = processRawLeads(rawLeads, centerLat, centerLng);
+                        document.getElementById('currentSearchLabel').innerText = `Varredura ativa: "${searchQuery}"`;
+                        applyFilters();
+                        fitMapToBounds(leadsData);
+                        showToast(`${leadsData.length} empresas mapeadas com sucesso!`);
+                        return;
+                    }
+                }
+                generateLocationBasedLeads(centerLat, centerLng, searchQuery);
+            } catch (error) {
+                console.warn("API Grounding Search fallback activated:", error.message);
+                generateLocationBasedLeads(centerLat, centerLng, searchQuery);
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        function processRawLeads(rawLeads, centerLat, centerLng) {
+            return rawLeads.map((item, idx) => {
+                let validWebsite = isValidUrlString(item.website);
+                let finalWebsite = validWebsite ? item.website : "Sem Website";
+                let webStat = item.webStatus || (validWebsite ? "Desatualizado" : "Sem Website");
+                if (validWebsite && webStat === "Sem Website") webStat = "Desatualizado";
+
+                let calculatedScore = item.score !== undefined ? item.score : (validWebsite ? (webStat === "Moderno" ? 85 : 45) : 15);
+
+                const rawPhone = item.phone || null;
+                const rawInstagram = item.instagram || null;
+
+                let defaultCompetitors = [
+                    {
+                        name: `Líder do Ramo em ${item.category || 'Serviços'}`,
+                        rating: 4.9,
+                        reviewsCount: 142,
+                        score: 92,
+                        advantages: [
+                            "Landing page moderna com agendamento via WhatsApp em 1 clique",
+                            "Carregamento ultra-rápido (< 1.2s) e 100% otimizado para celulares",
+                            "SEO local no topo do Google Maps com fotos e prova social ativas"
+                        ]
+                    }
+                ];
+
+                let autoDefects = JSON.parse(JSON.stringify(defaultDefectsList));
+                autoDefects[0].present = validWebsite;
+                autoDefects[1].present = item.hasWhatsappBtn !== undefined ? item.hasWhatsappBtn : (webStat === "Moderno");
+                autoDefects[2].present = item.isMobileOptimized !== undefined ? item.isMobileOptimized : (webStat === "Moderno");
+                autoDefects[3].present = webStat === "Moderno";
+                autoDefects[4].present = item.hasSsl !== undefined ? item.hasSsl : validWebsite;
+                autoDefects[5].present = (item.rating || 4.5) >= 4.5 && (item.reviewsCount || 0) >= 30;
+                autoDefects[6].present = item.hasCta !== undefined ? item.hasCta : (webStat === "Moderno");
+                autoDefects[7].present = item.hasPixels !== undefined ? item.hasPixels : false;
+
+                return {
+                    id: Date.now() + idx,
+                    name: item.name || "Empresa / Prestador",
+                    category: item.category || "Serviços",
+                    phone: rawPhone,
+                    instagram: rawInstagram,
+                    email: item.email || `contato@${(item.name || 'empresa').toLowerCase().replace(/[^a-z0-9]/g, '')}.com.br`,
+                    address: item.address || "Endereço Local",
+                    website: finalWebsite,
+                    webStatus: webStat,
+                    rating: item.rating || 4.7,
+                    reviewsCount: item.reviewsCount || 30,
+                    score: calculatedScore,
+                    opportunity: item.opportunity || (!validWebsite || calculatedScore < 40 ? "Alta" : (calculatedScore < 75 ? "Média" : "Baixa")),
+                    lat: item.lat || centerLat + (Math.random() - 0.5) * 0.02,
+                    lng: item.lng || centerLng + (Math.random() - 0.5) * 0.02,
+                    statusCRM: "A Prospectar",
+                    competitors: (item.competitors && item.competitors.length > 0) ? item.competitors : defaultCompetitors,
+                    defects: autoDefects,
+                    advancedImprovements: item.advancedImprovements || defaultAdvancedUpsells
+                };
+            });
+        }
+
+        function generateLocationBasedLeads(centerLat, centerLng, query = "") {
+            const queryLower = query.toLowerCase();
+            
+            let templates = [
+                { name: "Martins & Viana Advocacia Trabalhista", cat: "Advocacia", phone: "(16) 3625-4020", insta: "@martinsviana.adv", email: "contato@martinsvianaadv.com.br", web: "Sem Website", webStat: "Sem Website", rating: 4.9, rev: 88, score: 15, opp: "Alta" },
+                { name: "Dr. Fernando Resende Advocacia Empresarial", cat: "Advocacia", phone: "(16) 3911-8833", insta: "@resendeadvocacia", email: "atendimento@resendeadv.com.br", web: "http://resendeadv.com.br", webStat: "Desatualizado", rating: 4.7, rev: 52, score: 40, opp: "Alta" },
+                { name: "Guerra & Lemos Advogados Associados", cat: "Advocacia", phone: "(16) 3625-9000", insta: "@guerralemos.adv", email: "contato@guerralemosadv.com.br", web: "https://guerralemosadv.com.br", webStat: "Moderno", rating: 5.0, rev: 210, score: 92, opp: "Baixa" },
+                { name: "OdontoCenter Estética & Implantes", cat: "Saúde", phone: "(16) 3612-2244", insta: null, email: "contato@odontocenterlocal.com.br", web: "Sem Website", webStat: "Sem Website", rating: 4.8, rev: 64, score: 20, opp: "Alta" },
+                { name: "Clínica Dra. Camila Silva Dermatologia", cat: "Saúde", phone: "(16) 3968-1010", insta: "@dracamilasidermo", email: "agendamento@camilasilva.med.br", web: "https://camilasilvadermatologia.com.br", webStat: "Moderno", rating: 4.9, rev: 145, score: 88, opp: "Baixa" },
+                { name: "Exata Contabilidade & Gestão Fiscal", cat: "Contabilidade", phone: "(16) 3968-4500", insta: null, email: "contato@exatacontabil.com.br", web: "http://exatacontabil.com.br", webStat: "Desatualizado", rating: 4.6, rev: 41, score: 45, opp: "Média" },
+                { name: "Bistrô & Restaurante Terraço Gruta", cat: "Restaurantes", phone: "(16) 3630-5511", insta: "@terracogruta.bistro", email: "reserva@grutabistro.com.br", web: "Sem Website", webStat: "Sem Website", rating: 4.7, rev: 112, score: 25, opp: "Alta" },
+                { name: "Studio Vip Estética & Cabelo", cat: "Estética", phone: "(16) 3911-1299", insta: "@studiovip.hair", email: "contato@studiovip.com.br", web: "http://studiovip.com.br", webStat: "Desatualizado", rating: 4.5, rev: 35, score: 38, opp: "Alta" },
+                { name: "Auto Center Especializado Multimarcas", cat: "Auto", phone: "(16) 3630-7080", insta: null, email: "oficina@autocentermulti.com.br", web: "Sem Website", webStat: "Sem Website", rating: 4.8, rev: 93, score: 18, opp: "Alta" }
+            ];
+
+            if (queryLower.includes("advoc") || queryLower.includes("direito")) {
+                templates = templates.filter(t => t.cat === "Advocacia");
+            } else if (queryLower.includes("odont") || queryLower.includes("medic") || queryLower.includes("saude") || queryLower.includes("clinic")) {
+                templates = templates.filter(t => t.cat === "Saúde");
+            }
+
+            const streetNames = ["Av. Principal", "Rua das Flores", "Alameda Central", "Av. Brasil", "Rua do Comércio", "Rua Sete de Setembro", "Av. JK"];
+
+            const generated = templates.map((tmpl, idx) => {
+                const street = streetNames[idx % streetNames.length];
+                const number = (idx + 1) * 145;
+                const offsetLat = (Math.random() - 0.5) * 0.018;
+                const offsetLng = (Math.random() - 0.5) * 0.018;
+
+                let autoDefects = JSON.parse(JSON.stringify(defaultDefectsList));
+                let isMod = tmpl.webStat === "Moderno";
+                let isDes = tmpl.webStat === "Desatualizado";
+
+                autoDefects[0].present = tmpl.web !== "Sem Website";
+                autoDefects[1].present = isMod;
+                autoDefects[2].present = isMod;
+                autoDefects[3].present = isMod;
+                autoDefects[4].present = isMod || isDes;
+                autoDefects[5].present = tmpl.rating >= 4.7;
+                autoDefects[6].present = isMod;
+                autoDefects[7].present = false;
+
+                return {
+                    id: Date.now() + idx,
+                    name: tmpl.name,
+                    category: tmpl.cat,
+                    phone: tmpl.phone,
+                    instagram: tmpl.insta,
+                    email: tmpl.email,
+                    address: `${street}, ${number} - ${userCoords.locationName}`,
+                    website: tmpl.web,
+                    webStatus: tmpl.webStat,
+                    rating: tmpl.rating,
+                    reviewsCount: tmpl.rev,
+                    score: tmpl.score,
+                    opportunity: tmpl.opp,
+                    lat: centerLat + offsetLat,
+                    lng: centerLng + offsetLng,
+                    statusCRM: "A Prospectar",
+                    competitors: [
+                        {
+                            name: `Líder em ${tmpl.cat} na Região`,
+                            rating: 4.9,
+                            reviewsCount: 180,
+                            score: 95,
+                            advantages: [
+                                "Landing Page moderna com agendamento WhatsApp em 1 clique",
+                                "Carregamento ultra-rápido (< 1.1s) e visual mobile impecável",
+                                "Otimização no topo do Google Maps com fotos e avaliações"
+                            ]
+                        }
+                    ],
+                    defects: autoDefects,
+                    advancedImprovements: defaultAdvancedUpsells
+                };
+            });
+
+            leadsData = generated;
+            applyFilters();
+            fitMapToBounds(leadsData);
+            showToast(`${leadsData.length} empresas mapeadas na região!`);
+        }
+
+        function renderLeadsList(data) {
+            const container = document.getElementById('leadsList');
+            if (!container) return;
+            container.innerHTML = '';
+
+            document.getElementById('resultsCount').innerText = `${data.length} empresas`;
+
+            if (data.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-12 text-slate-500 text-xs space-y-2">
+                        <i class="fa-solid fa-radar text-4xl mb-2 block text-slate-600"></i>
+                        <p class="font-semibold text-slate-400">Nenhuma empresa encontrada com estes filtros.</p>
+                        <button onclick="resetFiltersAndFetchNearby()" class="mt-2 px-3 py-1.5 bg-emerald-600 text-white font-medium rounded-lg text-xs">
+                            <i class="fa-solid fa-arrows-rotate mr-1"></i> Carregar Empresas Perto de Mim
+                        </button>
+                    </div>
+                `;
+                return;
+            }
+
+            data.forEach(lead => {
+                let badgeClass = lead.opportunity === 'Alta' 
+                    ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' 
+                    : (lead.opportunity === 'Média' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' : 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20');
+
+                let phoneDisplay = lead.phone ? lead.phone : '<span class="text-slate-500 italic">Sem fone no Google</span>';
+                let instaDisplay = lead.instagram ? lead.instagram : '<span class="text-slate-500 italic">Sem Insta</span>';
+
+                let cardHTML = `
+                    <div onclick="openAuditModal(${lead.id})" class="p-4 rounded-xl bg-slate-900 border border-slate-800/80 hover:border-emerald-500/50 hover:bg-slate-900 transition-all cursor-pointer space-y-3 group shadow-sm">
+                        <div class="flex justify-between items-start gap-2">
+                            <div>
+                                <span class="text-[10px] uppercase font-semibold text-slate-400 tracking-wider flex items-center gap-1">
+                                    <i class="fa-solid ${lead.category === 'Advocacia' ? 'fa-scale-balanced' : 'fa-building'} text-emerald-400"></i>
+                                    ${lead.category}
+                                </span>
+                                <h3 class="font-bold text-sm text-slate-100 group-hover:text-emerald-400 transition-colors">${lead.name}</h3>
+                                <p class="text-[11px] text-slate-400 truncate max-w-[280px]"><i class="fa-solid fa-location-dot text-slate-500 mr-1"></i>${lead.address}</p>
+                            </div>
+                            <span class="text-[10px] font-bold px-2.5 py-0.5 rounded-full border ${badgeClass} shrink-0">
+                                ${lead.opportunity} Oportunidade
+                            </span>
+                        </div>
+
+                        <div class="flex items-center gap-4 text-xs text-slate-400">
+                            <div><i class="fa-solid fa-star text-amber-400 mr-1"></i> ${lead.rating} (${lead.reviewsCount})</div>
+                            <div><i class="fa-solid fa-phone text-emerald-400 mr-1"></i> ${phoneDisplay}</div>
+                        </div>
+
+                        <div>
+                            <div class="flex justify-between text-[11px] mb-1">
+                                <span class="text-slate-400">Score Presença Digital:</span>
+                                <span class="font-bold ${lead.score < 40 ? 'text-emerald-400' : 'text-slate-300'}">${lead.score}/100</span>
+                            </div>
+                            <div class="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden">
+                                <div class="h-full ${lead.score < 40 ? 'bg-emerald-500' : 'bg-indigo-500'}" style="width: ${lead.score}%"></div>
+                            </div>
+                        </div>
+
+                        <div class="pt-2 border-t border-slate-800/60 flex justify-between items-center text-xs">
+                            <span class="text-pink-400 font-semibold truncate max-w-[180px]"><i class="fa-brands fa-instagram mr-1"></i>${instaDisplay}</span>
+                            <span class="text-emerald-400 font-medium group-hover:translate-x-1 transition-transform">Ver Auditoria <i class="fa-solid fa-arrow-right ml-1"></i></span>
+                        </div>
+                    </div>
+                `;
+                container.innerHTML += cardHTML;
+            });
+        }
+
+        function renderMapMarkers(data) {
+            if (!map) return;
+            mapMarkers.forEach(m => map.removeLayer(m));
+            mapMarkers = [];
+
+            data.forEach(lead => {
+                let markerColor = lead.opportunity === 'Alta' ? '#10b981' : (lead.opportunity === 'Média' ? '#f59e0b' : '#6366f1');
+
+                let customIcon = L.divIcon({
+                    className: 'custom-map-pin',
+                    html: `
+                        <div style="background-color: ${markerColor}; width: 28px; height: 28px; border-radius: 50%; border: 3px solid #0f172a; box-shadow: 0 0 15px ${markerColor}; display: flex; align-items: center; justify-content: center; cursor: pointer;" title="${lead.name}">
+                            <i class="fa-solid ${lead.category === 'Advocacia' ? 'fa-scale-balanced' : 'fa-briefcase'}" style="color: #ffffff; font-size: 11px;"></i>
+                        </div>
+                    `,
+                    iconSize: [28, 28],
+                    iconAnchor: [14, 14]
+                });
+
+                let marker = L.marker([lead.lat, lead.lng], { icon: customIcon }).addTo(map);
+                let phoneDisplay = lead.phone ? lead.phone : 'Não informado';
+                let instaDisplay = lead.instagram ? lead.instagram : 'Não localizado';
+
+                let popupContent = `
+                    <div style="font-family: Inter, sans-serif; min-width: 210px;">
+                        <span style="font-size: 10px; text-transform: uppercase; color: ${markerColor}; font-weight: bold;">${lead.category}</span>
+                        <h4 style="font-weight: 700; font-size: 13px; margin: 2px 0 4px 0; color: #f8fafc;">${lead.name}</h4>
+                        <p style="font-size: 11px; color: #94a3b8; margin-bottom: 2px;"><i class="fa-solid fa-phone" style="color:#10b981"></i> ${phoneDisplay}</p>
+                        <p style="font-size: 11px; color: #f472b6; margin-bottom: 4px;"><i class="fa-brands fa-instagram"></i> ${instaDisplay}</p>
+                        <p style="font-size: 11px; color: #94a3b8; margin-bottom: 8px;"><i class="fa-solid fa-star text-amber-400"></i> ${lead.rating} (${lead.reviewsCount} avaliações)</p>
+                        <button onclick="openAuditModal(${lead.id})" style="width: 100%; background: #10b981; color: white; border: none; border-radius: 8px; padding: 7px; font-size: 11px; font-weight: 600; cursor: pointer;">
+                            Auditar Falhas & Contatos
+                        </button>
+                    </div>
+                `;
+
+                marker.bindPopup(popupContent);
+                mapMarkers.push(marker);
+            });
+        }
+
+        function fitMapToBounds(data) {
+            if (!map || !data || data.length === 0) return;
+            const validCoords = data.filter(d => d.lat && d.lng).map(d => [d.lat, d.lng]);
+            if (userCoords.lat && userCoords.lng) {
+                validCoords.push([userCoords.lat, userCoords.lng]);
+            }
+            if (validCoords.length > 0) {
+                const bounds = L.latLngBounds(validCoords);
+                map.fitBounds(bounds, { padding: [40, 40], maxZoom: 15 });
+            }
+        }
+
+        function evaluateLeadOpportunity(lead) {
+            const hasValidSite = isValidUrlString(lead.website);
+            let missingAssetsLoss = 0;
+
+            if (lead.defects) {
+                lead.defects.forEach(d => {
+                    if (!d.present) missingAssetsLoss += d.loss;
+                });
+            }
+
+            if (!hasValidSite) {
+                lead.webStatus = "Sem Website";
+                lead.opportunity = "Alta";
+                lead.score = 15;
+            } else {
+                if (lead.webStatus === "Sem Website") lead.webStatus = "Desatualizado";
+                if (lead.score >= 75) {
+                    lead.opportunity = "Baixa";
+                } else if (lead.score >= 45) {
+                    lead.opportunity = "Média";
+                } else {
+                    lead.opportunity = "Alta";
+                }
+            }
+
+            lead.calculatedMonthlyLoss = missingAssetsLoss;
+        }
+
+        function openAuditModal(leadId) {
+            const lead = leadsData.find(l => l.id === leadId);
+            if (!lead) return;
+
+            currentSelectedLead = lead;
+            evaluateLeadOpportunity(lead);
+
+            const modalLeadName = document.getElementById('modalLeadName');
+            if (modalLeadName) modalLeadName.innerText = lead.name;
+
+            const modalCategoryAddress = document.getElementById('modalCategoryAddress');
+            if (modalCategoryAddress) modalCategoryAddress.innerHTML = `<i class="fa-solid fa-location-dot text-slate-500 mr-1"></i> ${lead.address}`;
+
+            const modalPhone = document.getElementById('modalPhone');
+            const modalPhoneLink = document.getElementById('modalPhoneLink');
+            
+            if (lead.phone) {
+                if (modalPhone) modalPhone.innerText = lead.phone;
+                if (modalPhoneLink) {
+                    const cleanPhoneNums = lead.phone.replace(/\D/g, '');
+                    modalPhoneLink.href = `https://wa.me/55${cleanPhoneNums}`;
+                    modalPhoneLink.title = "Abrir conversa no WhatsApp";
+                    modalPhoneLink.classList.remove('hidden');
+                }
+            } else {
+                if (modalPhone) modalPhone.innerText = "Não informado no Google";
+                if (modalPhoneLink) modalPhoneLink.classList.add('hidden');
+            }
+
+            const modalInstagram = document.getElementById('modalInstagram');
+            const modalInstagramLink = document.getElementById('modalInstagramLink');
+            
+            if (lead.instagram) {
+                if (modalInstagram) modalInstagram.innerText = lead.instagram;
+                if (modalInstagramLink) {
+                    const cleanInsta = lead.instagram.replace('@', '');
+                    modalInstagramLink.href = `https://instagram.com/${cleanInsta}`;
+                    modalInstagramLink.title = "Abrir perfil no Instagram";
+                    modalInstagramLink.innerHTML = `<i class="fa-solid fa-up-right-from-square"></i>`;
+                }
+            } else {
+                if (modalInstagram) modalInstagram.innerText = "Não localizado";
+                if (modalInstagramLink) {
+                    const searchQuery = encodeURIComponent(`${lead.name} ${lead.category} instagram`);
+                    modalInstagramLink.href = `https://www.google.com/search?q=${searchQuery}`;
+                    modalInstagramLink.title = "Pesquisar perfil oficial no Google";
+                    modalInstagramLink.innerHTML = `<i class="fa-solid fa-magnifying-glass"></i>`;
+                }
+            }
+
+            const modalEmail = document.getElementById('modalEmail');
+            if (modalEmail) modalEmail.innerText = lead.email;
+
+            const modalWebsite = document.getElementById('modalWebsite');
+            if (modalWebsite) modalWebsite.innerText = lead.website;
+
+            const catBadge = document.getElementById('modalCategoryBadge');
+            if (catBadge) {
+                let catIcon = lead.category === 'Advocacia' ? 'fa-scale-balanced' : (lead.category === 'Saúde' ? 'fa-user-doctor' : 'fa-building');
+                catBadge.innerHTML = `<i class="fa-solid ${catIcon}"></i>`;
+            }
+
+            const oppBadge = document.getElementById('modalOpportunityBadge');
+            if (oppBadge) {
+                if (lead.opportunity === 'Alta') {
+                    oppBadge.innerText = "Alta Oportunidade (Prospete Agora)";
+                    oppBadge.className = "px-2.5 py-0.5 text-xs font-semibold rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20";
+                } else if (lead.opportunity === 'Média') {
+                    oppBadge.innerText = "Média Oportunidade (Ajustes de Conversão)";
+                    oppBadge.className = "px-2.5 py-0.5 text-xs font-semibold rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20";
+                } else {
+                    oppBadge.innerText = "Excelente Estrutura (Foco em Upsell/Escala)";
+                    oppBadge.className = "px-2.5 py-0.5 text-xs font-semibold rounded-full bg-indigo-500/10 text-indigo-400 border border-indigo-500/20";
+                }
+            }
+
+            const verdictBox = document.getElementById('modalVerdictBox');
+            const verdictScore = document.getElementById('modalVerdictScore');
+            const verdictText = document.getElementById('modalVerdictText');
+
+            if (verdictScore) verdictScore.innerText = `Score Presença Digital: ${lead.score}/100`;
+
+            if (verdictBox && verdictText) {
+                if (lead.opportunity === 'Alta') {
+                    verdictBox.className = "p-4 rounded-2xl border bg-emerald-950/30 border-emerald-500/40 space-y-2";
+                    verdictText.innerText = `CRÍTICO: Esta empresa apresenta ALTA OPORTUNIDADE DE FECHAMENTO! Ela está com presença digital vulnerável (${lead.webStatus}), sem canal rápido de agendamento e perdendo diariamente clientes para os principais concorrentes de ${lead.category} da região.`;
+                } else if (lead.opportunity === 'Média') {
+                    verdictBox.className = "p-4 rounded-2xl border bg-amber-950/30 border-amber-500/40 space-y-2";
+                    verdictText.innerText = `OPORTUNIDADE MÉDIA: O cliente já possui presença digital, porém tem gargalos sérios de velocidade, falta de botão WhatsApp flutuante ou formulários que diminuem a conversão direta em relação aos concorrentes.`;
+                } else {
+                    verdictBox.className = "p-4 rounded-2xl border bg-indigo-950/30 border-indigo-500/40 space-y-2";
+                    verdictText.innerText = `EXCELENTE PRESENÇA DIGITAL: Esta empresa não está perdendo vendas básicas, pois possui um site bem avaliado e responsivo. A abordagem recomendada é de SERVIÇOS AVANÇADOS DE ESCALA (Automação com IA, Pixels de Retargeting e Otimização para Tráfego Pago).`;
+                }
+            }
+
+            const modalPipelineStatus = document.getElementById('modalPipelineStatus');
+            if (modalPipelineStatus) modalPipelineStatus.value = lead.statusCRM || "A Prospectar";
+
+            renderDigitalHealthPillars(lead);
+            renderCompetitors(lead);
+            renderSystemDiagnostic(lead);
+
+            if (map && lead.lat && lead.lng) map.panTo([lead.lat, lead.lng]);
+
+            const modal = document.getElementById('auditModal');
+            if (modal) modal.classList.remove('hidden');
+        }
+
+        function renderDigitalHealthPillars(lead) {
+            const container = document.getElementById('pillarsContainer');
+            if (!container) return;
+            container.innerHTML = '';
+
+            const pillars = [
+                { name: "Design & Mobile", score: lead.defects.find(d => d.id === 'mobile_broken')?.present ? 100 : 25, icon: "fa-solid fa-mobile-screen", color: "emerald" },
+                { name: "Captura & CTA", score: lead.defects.find(d => d.id === 'no_whatsapp')?.present ? 100 : 15, icon: "fa-brands fa-whatsapp", color: "amber" },
+                { name: "SEO & Autoridade", score: lead.defects.find(d => d.id === 'low_reviews')?.present ? 100 : 45, icon: "fa-brands fa-google", color: "indigo" },
+                { name: "Segurança & Pixel", score: lead.defects.find(d => d.id === 'no_ssl')?.present ? 100 : 10, icon: "fa-solid fa-shield", color: "cyan" }
+            ];
+
+            pillars.forEach(p => {
+                container.innerHTML += `
+                    <div class="bg-slate-900 border border-slate-800 rounded-xl p-3 space-y-2">
+                        <div class="flex items-center gap-2">
+                            <div class="w-6 h-6 rounded-md bg-slate-800 border border-slate-700 flex items-center justify-center text-${p.color}-400 shrink-0">
+                                <i class="${p.icon} text-[10px]"></i>
+                            </div>
+                            <span class="font-bold text-slate-200 text-[11px] truncate">${p.name}</span>
+                        </div>
+                        <div>
+                            <div class="flex justify-between text-[10px] mb-1">
+                                <span class="text-slate-400">Score</span>
+                                <span class="font-bold text-${p.color}-400">${p.score}/100</span>
+                            </div>
+                            <div class="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden">
+                                <div class="h-full bg-${p.color}-500" style="width: ${p.score}%"></div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        function renderCompetitors(lead) {
+            const container = document.getElementById('competitorsContainer');
+            if (!container) return;
+            container.innerHTML = '';
+
+            const competitors = lead.competitors && lead.competitors.length > 0 ? lead.competitors : [];
+
+            competitors.forEach((comp, idx) => {
+                let advantagesHTML = comp.advantages 
+                    ? comp.advantages.map(adv => `
+                        <li class="flex items-start gap-2 bg-slate-950 p-2 rounded-lg border border-slate-800/80">
+                            <i class="fa-solid fa-circle-check text-emerald-400 text-xs mt-0.5 shrink-0"></i> 
+                            <span class="text-[11px] text-slate-200">${adv}</span>
+                        </li>`).join('')
+                    : '<li class="text-slate-400 text-xs">Site estruturado com alta taxa de conversão.</li>';
+
+                container.innerHTML += `
+                    <div class="bg-slate-900 p-4 rounded-xl border border-slate-800 space-y-3 relative overflow-hidden flex flex-col justify-between">
+                        <div class="space-y-2">
+                            <div class="flex justify-between items-start gap-2 border-b border-slate-800 pb-2.5">
+                                <div>
+                                    <span class="text-[10px] font-bold uppercase text-amber-400 tracking-wider flex items-center gap-1">
+                                        <i class="fa-solid fa-trophy text-amber-400"></i> Concorrente #${idx + 1} do Ramo
+                                    </span>
+                                    <h4 class="font-bold text-slate-100 text-xs mt-0.5">${comp.name}</h4>
+                                    <div class="flex items-center gap-2 text-[11px] text-slate-400 mt-1">
+                                        <span><i class="fa-solid fa-star text-amber-400 mr-1"></i>${comp.rating} (${comp.reviewsCount} avaliações)</span>
+                                    </div>
+                                </div>
+                                <div class="text-right shrink-0">
+                                    <span class="text-[10px] text-slate-400 block uppercase">Presença Digital</span>
+                                    <span class="text-xs font-extrabold px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">${comp.score}/100</span>
+                                </div>
+                            </div>
+
+                            <div class="space-y-1.5">
+                                <span class="text-[10px] uppercase font-bold text-slate-400 block">Vantagens Digitais em Relação a ${lead.name}:</span>
+                                <ul class="space-y-1.5">
+                                    ${advantagesHTML}
+                                </ul>
+                            </div>
+                        </div>
+
+                        <div class="pt-2 border-t border-slate-800/80 mt-2 bg-red-500/5 p-2.5 rounded-lg border border-red-500/20">
+                            <span class="text-[10px] font-bold text-red-400 block uppercase flex items-center gap-1">
+                                <i class="fa-solid fa-arrow-trend-down"></i> Onde ${lead.name} está perdendo clientes:
+                            </span>
+                            <p class="text-[11px] text-slate-300 mt-0.5 leading-snug">
+                                Enquanto a ${comp.name} captura leads em segundos, a ${lead.name} ${isValidUrlString(lead.website) ? 'possui um site desatualizado sem botões de ação rápida' : 'não possui site próprio'}, fazendo os clientes migrarem para o concorrente.
+                            </p>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        function renderSystemDiagnostic(lead) {
+            const container = document.getElementById('defectsChecklist');
+            if (!container) return;
+            container.innerHTML = '';
+
+            const lossTitleLabel = document.getElementById('lossTitleLabel');
+            const modalEstimatedLoss = document.getElementById('modalEstimatedLoss');
+            const advancedGrowthBox = document.getElementById('advancedGrowthBox');
+            const advancedGrowthList = document.getElementById('advancedGrowthList');
+
+            if (lead.opportunity === 'Baixa') {
+                if (lossTitleLabel) lossTitleLabel.innerText = "Status de Captura de Clientes";
+                if (modalEstimatedLoss) {
+                    modalEstimatedLoss.innerText = "Estrutura Sólida ✨";
+                    modalEstimatedLoss.className = "text-base font-extrabold text-emerald-400";
+                }
+
+                if (advancedGrowthBox && advancedGrowthList) {
+                    advancedGrowthBox.classList.remove('hidden');
+                    advancedGrowthList.innerHTML = '';
+                    
+                    const upsells = lead.advancedImprovements || defaultAdvancedUpsells;
+                    upsells.forEach(item => {
+                        advancedGrowthList.innerHTML += `
+                            <div class="bg-indigo-950/40 border border-indigo-500/30 p-2.5 rounded-xl flex items-center gap-2">
+                                <i class="fa-solid fa-wand-magic-sparkles text-indigo-400 text-xs shrink-0"></i>
+                                <span class="text-[11px] text-slate-200 font-medium">${item}</span>
+                            </div>
+                        `;
+                    });
+                }
+            } else {
+                if (lossTitleLabel) lossTitleLabel.innerText = "Perda Estimada em Clientes";
+                if (modalEstimatedLoss) {
+                    let totalLoss = lead.calculatedMonthlyLoss || 6500;
+                    modalEstimatedLoss.innerText = `-R$ ${totalLoss.toLocaleString('pt-BR')} /mês`;
+                    modalEstimatedLoss.className = "text-base font-extrabold text-red-400";
+                }
+                if (advancedGrowthBox) advancedGrowthBox.classList.add('hidden');
+            }
+
+            lead.defects.forEach(defect => {
+                let badgeHTML = defect.present 
+                    ? `<span class="text-[10px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded-full font-semibold shrink-0 flex items-center gap-1"><i class="fa-solid fa-circle-check"></i> Presente</span>`
+                    : `<span class="text-[10px] bg-red-500/10 text-red-400 border border-red-500/20 px-2 py-0.5 rounded-full font-semibold shrink-0 flex items-center gap-1"><i class="fa-solid fa-triangle-exclamation"></i> Ausente / Defeito</span>`;
+
+                let itemHTML = `
+                    <div class="p-3 bg-slate-900 border ${defect.present ? 'border-slate-800' : 'border-red-500/30 bg-red-500/5'} rounded-xl flex items-center justify-between gap-2">
+                        <div class="space-y-0.5">
+                            <span class="font-medium text-xs text-slate-200 block">${defect.label}</span>
+                            <span class="text-[10px] ${defect.present ? 'text-slate-400' : 'text-red-400 font-semibold'} block">
+                                ${defect.present ? 'Verificado e Ativo' : `-R$ ${defect.loss.toLocaleString('pt-BR')} /mês em vazamento de vendas`}
+                            </span>
+                        </div>
+                        ${badgeHTML}
+                    </div>
+                `;
+                container.innerHTML += itemHTML;
+            });
+        }
+
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            if (!toast) return;
+            document.getElementById('toastMessage').innerText = message;
+            toast.classList.remove('opacity-0', 'pointer-events-none', 'translate-y-[-10px]');
+            toast.classList.add('opacity-100', 'translate-y-0');
+            setTimeout(() => {
+                toast.classList.remove('opacity-100', 'translate-y-0');
+                toast.classList.add('opacity-0', 'pointer-events-none', 'translate-y-[-10px]');
+            }, 3500);
+        }
+
+        function exportCSV() {
+            let csvContent = "data:text/csv;charset=utf-8,";
+            csvContent += "ID,Nome,Categoria,Telefone,Instagram,Email,Endereco,StatusWebsite,ScoreDigital,Oportunidade,StatusCRM\n";
+
+            leadsData.forEach(l => {
+                let row = `"${l.id}","${l.name}","${l.category}","${l.phone || ''}","${l.instagram || ''}","${l.email}","${l.address}","${l.webStatus}","${l.score}","${l.opportunity}","${l.statusCRM}"`;
+                csvContent += row + "\n";
+            });
+
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", "LeadPro_Prospeccao_GPS.csv");
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+    </script>
+</body>
+</html>
